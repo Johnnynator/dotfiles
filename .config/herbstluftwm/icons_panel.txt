@@ -1,0 +1,15 @@
+export POWERSUPPLY="/sys/class/power_supply/AC" 
+export ICON_BATTERY_EMPTY='\uf244' 
+export ICON_BATTERY_QUARTER='\uf243' 
+export ICON_BATTERY_HALF='\uf242' 
+export ICON_BATTERY_THREEQUARTERS='\uf241' 
+export ICON_BATTERY_FULL='\uf240' 
+export ICON_BATTERY_CHARGING='\uf1e6'
+export ICON_VOLUME_HIGH='\uf028'
+export ICON_VOLUME_LOW='\uf027'
+export ICON_VOLUME_MUTE='\uf026'
+export ICON_WIRED_CONNECTED='\uf126'
+export ICON_WIFI_CONNECTED='\uf1eb'
+export ICON_WIFI_DISCONNECTED='\uf05e'
+export MUSIC_ICON='\uf001'
+
