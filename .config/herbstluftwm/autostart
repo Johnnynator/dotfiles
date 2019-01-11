@@ -189,11 +189,14 @@ hc keybind XF86MonBrightnessUp spawn xbacklight -inc 5 # increase screen brightn
 hc keybind XF86MonBrightnessDown spawn xbacklight -dec 5 # decrease screen brightness 
 
 #Lock
-hc keybind $Mod-l spawn dm-tool lock
+# hc keybind $Mod-l spawn dm-tool lock
+hc keybind $Mod-l spawn ~/.config/polybar/lock.sh
 
 #Notifcations
 dunst &
 wal -R -n -a 85
+
+redshift &
 
 #Screen-shot
 hc keybind $Mod-x spawn scrot -q 100 ~/Pictures/Screenshots/screen-`/bin/date +%Y-%m-%d--%H:%M:%S`.png -z

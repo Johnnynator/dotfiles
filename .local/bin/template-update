@@ -1,0 +1,101 @@
+#!/usr/bin/sh
+cd "$(xdistdir)" || exit
+
+case "$1" in
+	-m) FLAG_m=$1; shift
+esac
+case "$1" in
+	-f) FLAG_f=$1; shift
+esac
+case "$1" in
+	-b) FLAG_b=$1; shift
+esac
+case "$1" in
+	-a) FLAG_a=$1; shift
+esac
+case "$1" in
+	-n) FLAG_n=$1; shift
+esac
+case "$1" in
+	-u) shift;
+	echo 'Usage: template-updates [-m] [-f] [-b] [-a] [-n] [-u] [kde-framework|plasma|kmail] [version]'
+esac
+
+
+version="$2"
+case "$1" in
+	kde-framework)
+	packages="$(git grep -l -F 'distfiles="${KDE_SITE}/frameworks/' -- 'srcpkgs/*/template' |
+		cut -d/ -f2)"
+		;;
+	plasma)
+	packages="$(git grep -l -F 'distfiles="${KDE_SITE}/plasma/' -- 'srcpkgs/*/template' |
+		cut -d/ -f2)"
+		;;
+	kde-apps)
+	packages="$(git grep -l -F 'distfiles="${KDE_SITE}/applications/' -- 'srcpkgs/*/template' |
+		cut -d/ -f2)"
+		;;
+	kmail)
+	packages="akonadi-calendar akonadi-contacts akonadi-import-wizard
+ akonadi-mime akonadi-notes akonadi-search calendarsupport grantleetheme
+ kalarmcal kcalcore kcalutils kdav kdepim-apps-libs kdepim-runtime kimap kldap
+ kmail kmail-account-wizard kmailtransport kmbox kmime kontactinterface ksmtp
+ ktnef libgravatar libkdepim libkgapi libkleo libksieve mailcommon mailimporter
+ messagelib pimcommon kpimtextedit/ kidentitymanagement akonadi5"
+		;;
+	kde-baseapps)
+	packages="kde5-baseapps dolphin khelpcenter kate5 konsole"
+		;;
+	dev)
+	packages="$(git diff --name-status FETCH_HEAD...HEAD | grep "^[AM].*srcpkgs/[^/]*/template$" | cut -d/ -f 2)"
+		;;
+	*) 
+	packages="$1"
+	dev=1
+		;;
+esac
+
+cd "$(xdistdir)" &&
+for _pkg in $packages; do
+	if [ "$1" = dev ] || [ $dev ]; then
+		version=$(./xbps-src update-check $_pkg)
+		version=${version##*${_pkg}-}
+		echo ${version}
+	fi
+	if [ "$(grep -q "$version" "srcpkgs/$_pkg/template")" ]; then
+		echo "$_pkg is aleady $version"
+	else
+		echo "Update $_pkg to $version"
+		sed -i -e "s/^version=.*/version=${version}/g" "srcpkgs/$_pkg/template"
+		sed -i -e "s/^revision=.*/revision=1/g" "srcpkgs/$_pkg/template"
+		sed -i -e 's#http.://download.kde.org/stable#${KDE_SITE}#g' "srcpkgs/$_pkg/template"
+		if [ "$FLAG_m" = -m ]; then
+			sed -i -e 's#Denis Revin <denis.revin@gmail.com>#John <johnz@posteo.net>#g' "srcpkgs/$_pkg/template"
+			sed -i -e 's#Juan RP <xtraeme@gmail.com>#John <johnz@posteo.net>#g' "srcpkgs/$_pkg/template"
+			sed -i -e 's#Juan RP <xtraeme@voidlinux.eu>#John <johnz@posteo.net>#g' "srcpkgs/$_pkg/template"
+		fi
+		if [ "$FLAG_f" = -f ]; then
+			template-formalize "srcpkgs/$_pkg/template"
+		fi
+		if [ "$FLAG_b" = -b ]; then
+			sed -i -e 's#KDE_SITE#KDE_SITE/stable/unstable#g' "srcpkgs/$_pkg/template"
+		else
+			sed -i -e 's#\{KDE_SITE.*\}#{KDE_SITE}#g' "srcpkgs/$_pkg/template"
+		fi
+		xgensum -i "srcpkgs/$_pkg/template"
+		if [ "$FLAG_a" = -a ]; then
+			git add "srcpkgs/$_pkg/template"
+			[ $(git diff --cached --numstat srcpkgs/$_pkg/template | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
+			COMMIT=$(git log -n 1 --pretty=format:"%H" srcpkgs/$_pkg/template)
+			git commit --fixup=$COMMIT
+		elif [ "$FLAG_n" = -n ]; then
+			git add "srcpkgs/$_pkg/template"
+			[ $(git diff --cached --numstat srcpkgs/$_pkg/template | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
+			COMMIT=$(git log -n 1 --pretty=format:"%H" srcpkgs/$_pkg/template)
+			git commit --fixup=$COMMIT
+		else
+			xbump "$_pkg"
+		fi
+	fi
+done
