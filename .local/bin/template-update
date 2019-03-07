@@ -21,20 +21,22 @@ case "$1" in
 	echo 'Usage: template-updates [-m] [-f] [-b] [-a] [-n] [-u] [kde-framework|plasma|kmail] [version]'
 esac
 
-
 version="$2"
 case "$1" in
 	kde-framework)
 	packages="$(git grep -l -F 'distfiles="${KDE_SITE}/frameworks/' -- 'srcpkgs/*/template' |
 		cut -d/ -f2)"
+	ci_skip=1
 		;;
 	plasma)
-	packages="$(git grep -l -F 'distfiles="${KDE_SITE}/plasma/' -- 'srcpkgs/*/template' |
+	packages="$(git grep -l 'distfiles="${KDE_SITE.*}/plasma/' -- 'srcpkgs/*/template' |
 		cut -d/ -f2)"
+	ci_skip=1
 		;;
 	kde-apps)
 	packages="$(git grep -l -F 'distfiles="${KDE_SITE}/applications/' -- 'srcpkgs/*/template' |
 		cut -d/ -f2)"
+	ci_skip=1
 		;;
 	kmail)
 	packages="akonadi-calendar akonadi-contacts akonadi-import-wizard
@@ -42,10 +44,18 @@ case "$1" in
  kalarmcal kcalcore kcalutils kdav kdepim-apps-libs kdepim-runtime kimap kldap
  kmail kmail-account-wizard kmailtransport kmbox kmime kontactinterface ksmtp
  ktnef libgravatar libkdepim libkgapi libkleo libksieve mailcommon mailimporter
- messagelib pimcommon kpimtextedit/ kidentitymanagement akonadi5"
+ messagelib pimcommon kpimtextedit/ kidentitymanagement akonadi5 kcontacts"
+	ci_skip=1
 		;;
 	kde-baseapps)
-	packages="kde5-baseapps dolphin khelpcenter kate5 konsole"
+	packages="kde5-baseapps dolphin khelpcenter kate5 konsole baloo-widgets5"
+	ci_skip=1
+		;;
+	okular)
+	packages="okular libkexiv25"
+		;;
+	spectacle)
+	packages="spectacle libkipi5"
 		;;
 	dev)
 	packages="$(git diff --name-status FETCH_HEAD...HEAD | grep "^[AM].*srcpkgs/[^/]*/template$" | cut -d/ -f 2)"
@@ -59,14 +69,21 @@ esac
 cd "$(xdistdir)" &&
 for _pkg in $packages; do
 	if [ "$1" = dev ] || [ $dev ]; then
-		version=$(./xbps-src update-check $_pkg)
+		version=$(./xbps-src update-check "$_pkg")
 		version=${version##*${_pkg}-}
-		echo ${version}
+		echo "${version}"
 	fi
-	if [ "$(grep -q "$version" "srcpkgs/$_pkg/template")" ]; then
+	if grep -q "version=$version" "srcpkgs/$_pkg/template"; then
 		echo "$_pkg is aleady $version"
 	else
 		echo "Update $_pkg to $version"
+		case $_pkg in
+			amdvlk)
+				for i in $(manifest-amdvlk.py "$version" | grep -v master); do
+					sed -i "s/${i%=*}=.*/${i%}/g" "srcpkgs/$_pkg/template"
+				done
+				;;
+		esac
 		sed -i -e "s/^version=.*/version=${version}/g" "srcpkgs/$_pkg/template"
 		sed -i -e "s/^revision=.*/revision=1/g" "srcpkgs/$_pkg/template"
 		sed -i -e 's#http.://download.kde.org/stable#${KDE_SITE}#g' "srcpkgs/$_pkg/template"
@@ -81,21 +98,24 @@ for _pkg in $packages; do
 		if [ "$FLAG_b" = -b ]; then
 			sed -i -e 's#KDE_SITE#KDE_SITE/stable/unstable#g' "srcpkgs/$_pkg/template"
 		else
-			sed -i -e 's#\{KDE_SITE.*\}#{KDE_SITE}#g' "srcpkgs/$_pkg/template"
+			sed -i -e 's#{KDE_SITE/stable/unstable}#{KDE_SITE}#g' "srcpkgs/$_pkg/template"
 		fi
 		xgensum -i "srcpkgs/$_pkg/template"
 		if [ "$FLAG_a" = -a ]; then
 			git add "srcpkgs/$_pkg/template"
-			[ $(git diff --cached --numstat srcpkgs/$_pkg/template | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
-			COMMIT=$(git log -n 1 --pretty=format:"%H" srcpkgs/$_pkg/template)
-			git commit --fixup=$COMMIT
+			[ $(git diff --cached --numstat "srcpkgs/$_pkg/template" | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
+			COMMIT=$(git log -n 1 --pretty=format:"%H" "srcpkgs/$_pkg/template")
+			git commit --fixup="$COMMIT"
 		elif [ "$FLAG_n" = -n ]; then
 			git add "srcpkgs/$_pkg/template"
-			[ $(git diff --cached --numstat srcpkgs/$_pkg/template | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
-			COMMIT=$(git log -n 1 --pretty=format:"%H" srcpkgs/$_pkg/template)
-			git commit --fixup=$COMMIT
+			[ $(git diff --cached --numstat "srcpkgs/$_pkg/template" | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
+			COMMIT=$(git log -n 1 --pretty=format:"%H" "srcpkgs/$_pkg/template")
+			git commit --fixup="$COMMIT"
 		else
 			xbump "$_pkg"
+			if [ $ci_skip -eq 1 ]; then
+				git commit --amend -m "${_pkg}: update to ${version}" -m "[ci skip]"
+			fi
 		fi
 	fi
 done
