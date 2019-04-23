@@ -44,7 +44,7 @@ case "$1" in
  kalarmcal kcalcore kcalutils kdav kdepim-apps-libs kdepim-runtime kimap kldap
  kmail kmail-account-wizard kmailtransport kmbox kmime kontactinterface ksmtp
  ktnef libgravatar libkdepim libkgapi libkleo libksieve mailcommon mailimporter
- messagelib pimcommon kpimtextedit/ kidentitymanagement akonadi5 kcontacts"
+ messagelib pimcommon kpimtextedit kidentitymanagement akonadi5 kcontacts pim-data-exporter"
 	ci_skip=1
 		;;
 	kde-baseapps)
@@ -79,7 +79,7 @@ for _pkg in $packages; do
 		echo "Update $_pkg to $version"
 		case $_pkg in
 			amdvlk)
-				for i in $(manifest-amdvlk.py "$version" | grep -v master); do
+				for i in $(manifest-amdvlk.py "v-$version" | grep -v master); do
 					sed -i "s/${i%=*}=.*/${i%}/g" "srcpkgs/$_pkg/template"
 				done
 				;;
@@ -113,7 +113,7 @@ for _pkg in $packages; do
 			git commit --fixup="$COMMIT"
 		else
 			xbump "$_pkg"
-			if [ $ci_skip -eq 1 ]; then
+			if [ "$ci_skip" ]; then
 				git commit --amend -m "${_pkg}: update to ${version}" -m "[ci skip]"
 			fi
 		fi
