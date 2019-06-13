@@ -1,106 +1,187 @@
-#!/bin/bash
-#                                     ██
-# ██████                             ░██
-#░██░░░██  ██████   ███████   █████  ░██
-#░██  ░██ ░░░░░░██ ░░██░░░██ ██░░░██ ░██
-#░██████   ███████  ░██  ░██░███████ ░██
-#░██░░░   ██░░░░██  ░██  ░██░██░░░░  ░██
-#░██     ░░████████ ███  ░██░░██████ ███
-#░░       ░░░░░░░░ ░░░   ░░  ░░░░░░ ░░░ 
-# Panel for herbstluftwm using lemonbar configuration
+#!/usr/bin/env bash
 
-# Disable path name expansion or * will be expanded in the line
-# cmd=( $line )
-set -f
+quote() {
+	local q="$(printf '%q ' "$@")"
+	printf '%s' "${q% }"
+}
 
-# Sourced files
-source ~/.cache/wal/colors.sh # Color scheme using  $COLOR0 - $COLOR7
-source ~/.config/herbstluftwm/icons_panel.txt # contains icons for panel
-
-# Use the current monitor
-monitor=${1-0}
-geometry=( $(herbstclient monitor_rect "$monitor") )
-if [ -z "$geometry" ]; then
+hc_quoted="$(quote "${herbstclient_command[@]:-herbstclient}")"
+hc() { "${herbstclient_command[@]:-herbstclient}" "$@" ;}
+monitor=${1:-0}
+geometry=( $(hc monitor_rect "$monitor") )
+if [ -z "$geometry" ] ;then
     echo "Invalid monitor $monitor"
     exit 1
 fi
+# geometry has the format W H X Y
+x=${geometry[0]}
+y=${geometry[1]}
+panel_width=${geometry[2]}
+panel_height=16
+font="-*-fixed-medium-*-*-*-13-*-*-*-*-*-*-*"
+bgcolor=$(hc get frame_border_normal_color)
+selbg=$(hc get window_border_active_color)
+selfg='#101010'
 
-# Define the panel size
-x=$((geometry[0] + 520))
-y=$((geometry[1] + 0))
-panel_width=$((geometry[2] - 1040)) # Minus 2x makes it center
-panel_height=20
-pad_amount=$((y + panel_height))
+####
+# Try to find textwidth binary.
+# In e.g. Ubuntu, this is named dzen2-textwidth.
+if which textwidth &> /dev/null ; then
+    textwidth="textwidth";
+elif which dzen2-textwidth &> /dev/null ; then
+    textwidth="dzen2-textwidth";
+else
+    echo "This script requires the textwidth tool of the dzen2 project."
+    exit 1
+fi
+####
+# true if we are using the svn version of dzen2
+# depending on version/distribution, this seems to have version strings like
+# "dzen-" or "dzen-x.x.x-svn"
+if dzen2 -v 2>&1 | head -n 1 | grep -q '^dzen-\([^,]*-svn\|\),'; then
+    dzen2_svn="true"
+else
+    dzen2_svn=""
+fi
 
-# Set fonts to use
-font1="DejaVuSansMono:size=9" # Main font for text
-font2="FontAwesome:size=9" # Icon font for icons
+if awk -Wv 2>/dev/null | head -1 | grep -q '^mawk'; then
+    # mawk needs "-W interactive" to line-buffer stdout correctly
+    # http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=593504
+    uniq_linebuffered() {
+      awk -W interactive '$0 != l { print ; l=$0 ; fflush(); }' "$@"
+    }
+else
+    # other awk versions (e.g. gawk) issue a warning with "-W interactive", so
+    # we don't want to use it there.
+    uniq_linebuffered() {
+      awk '$0 != l { print ; l=$0 ; fflush(); }' "$@"
+    }
+fi
 
-herbstclient pad $monitor 0 0 $pad_amount 0
+hc pad $monitor $panel_height
+
 {
-    # Events to be monitored
-    # Herbstluftwm Events:
-    herbstclient --idle
-# Pipe output to next section and errors to nowhere
+    ### Event generator ###
+    # based on different input data (mpc, date, hlwm hooks, ...) this generates events, formed like this:
+    #   <eventname>\t<data> [...]
+    # e.g.
+    #   date    ^fg(#efefef)18:33^fg(#909090), 2013-10-^fg(#efefef)29
+
+    #mpc idleloop player &
+    while true ; do
+        # "date" output is checked once a second, but an event is only
+        # generated if the output changed compared to the previous run.
+        date +$'date\t^fg(#efefef)%H:%M^fg(#909090), %Y-%m-^fg(#efefef)%d'
+        sleep 1 || break
+    done > >(uniq_linebuffered) &
+    childpid=$!
+    hc --idle
+    kill $childpid
 } 2> /dev/null | {
-    # Get status of tags in respect to the current monitor
-    TAGS=( $(herbstclient tag_status $monitor) )
-    unset TAGS[${#TAGS[@]}]
-	echo $monitor >&2
-	echo ${TAGS[19]} >&2
-    while true; do
-        # Center and add underline for current tags
-        echo -en "%{c}%{+u}"
-        for i in "${TAGS[@]}"; do
+    IFS=$'\t' read -ra tags <<< "$(hc tag_status $monitor)"
+    visible=true
+    date=""
+    windowtitle=""
+    while true ; do
+
+        ### Output ###
+        # This part prints dzen data based on the _previous_ data handling run,
+        # and then waits for the next event to happen.
+
+        separator="^bg()^fg($selbg)|"
+        # draw tags
+        for i in "${tags[@]}" ; do
             case ${i:0:1} in
-                '#') # Active tag on current monitor
-                    echo -en "%{+u}%{F$COLOR7}%{U$COLOR7}"
+                '#')
+                    echo -n "^bg($selbg)^fg($selfg)"
                     ;;
-                '+') # Active on other monitor
-                    echo -en "%{+u}%{F"#aaaaaa"}%{U$COLOR7}"
+                '+')
+                    echo -n "^bg(#9CA668)^fg(#141414)"
                     ;;
-                ':') # Items are open but tag is not visible
-                    echo -en "%{-u}%{F$COLOR7}%{U-}"
+                ':')
+                    echo -n "^bg()^fg(#ffffff)"
                     ;;
-                '!') # Urgent tag, you never know
-                    echo -en "%{+u}%{F$COLOR3}%{U$COLOR3}"
+                '!')
+                    echo -n "^bg(#FF0675)^fg(#141414)"
                     ;;
                 *)
-                    echo -en "%{-u}%{F"#404040"}%{U-}"
+                    echo -n "^bg()^fg(#ababab)"
                     ;;
             esac
-            # Now that it's formatted add the tag title
-            # Open a clickable area for tag switching
-            echo -n "%{A:herbstclient use \\${i:1}:}"
-            echo -en "   ${i:1}   " # Tag title
-            echo -n "%{A}" # Close the click area
+            if [ ! -z "$dzen2_svn" ] ; then
+                # clickable tags if using SVN dzen
+                echo -n "^ca(1,$hc_quoted focus_monitor \"$monitor\" && "
+                echo -n "$hc_quoted use \"${i:1}\") ${i:1} ^ca()"
+            else
+                # non-clickable tags if using older dzen
+                echo -n " ${i:1} "
+            fi
         done
+        echo -n "$separator"
+        echo -n "^bg()^fg() ${windowtitle//^/^^}"
+        # small adjustments
+        right="$separator^bg() $date $separator"
+        right_text_only=$(echo -n "$right" | sed 's.\^[^(]*([^)]*)..g')
+        # get width of right aligned text.. and add some space..
+        width=$($textwidth "$font" "$right_text_only    ")
+        echo -n "^pa($(($panel_width - $width)))$right"
         echo
-        # Wait for next event
-        read line || break
-        cmd=( $line )
-        # Then figure out where it came from
+
+        ### Data handling ###
+        # This part handles the events generated in the event loop, and sets
+        # internal variables based on them. The event and its arguments are
+        # read into the array cmd, then action is taken depending on the event
+        # name.
+        # "Special" events (quit_panel/togglehidepanel/reload) are also handled
+        # here.
+
+        # wait for next event
+        IFS=$'\t' read -ra cmd || break
+        # find out event origin
         case "${cmd[0]}" in
-            tag*) # Herbstclient tag event (Window open, close etc)
-                TAGS=( $(herbstclient tag_status $monitor) )
-                unset TAGS[${TAGS[@]}]
+            tag*)
+                #echo "resetting tags" >&2
+                IFS=$'\t' read -ra tags <<< "$(hc tag_status $monitor)"
                 ;;
-            quit_panel) # Quit the panel
+            date)
+                #echo "resetting date" >&2
+                date="${cmd[@]:1}"
+                ;;
+            quit_panel)
                 exit
                 ;;
-            reload) # Panel is reloaded
+            togglehidepanel)
+                currentmonidx=$(hc list_monitors | sed -n '/\[FOCUS\]$/s/:.*//p')
+                if [ "${cmd[1]}" -ne "$monitor" ] ; then
+                    continue
+                fi
+                if [ "${cmd[1]}" = "current" ] && [ "$currentmonidx" -ne "$monitor" ] ; then
+                    continue
+                fi
+                echo "^togglehide()"
+                if $visible ; then
+                    visible=false
+                    hc pad $monitor 0
+                else
+                    visible=true
+                    hc pad $monitor $panel_height
+                fi
+                ;;
+            reload)
                 exit
                 ;;
+            focus_changed|window_title_changed)
+                windowtitle="${cmd[@]:2}"
+                ;;
+            #player)
+            #    ;;
         esac
     done
-# Now funnel the errors to nowhere and the good stuff to the panel
-# lemonbar                                     # Panel program to use
-# -b                                           # start panel at the bottom
-# -u <number>                                  # Underline width
-# -g <width>x<height>+<x offset>+<y offset>    # Panel geometry
-# -B <color>                                   # Background color
-# -F <color>                                   # Foreground color
-# -f <font>                                    # Primary font
-# -f <font>                                    # Secondary font (icons)
-# sh               # Pipe to sh so clickable areas can execute commands
-} 2> /dev/null | lemonbar -b -u 2 -g "$panel_width"x"$panel_height"+"$x"+"$y" -B $background -F $foreground -f $font1 -f $font2 | sh
+
+    ### dzen2 ###
+    # After the data is gathered and processed, the output of the previous block
+    # gets piped to dzen2.
+
+} 2> /dev/null | dzen2 -w $panel_width -x $x -y $y -fn "$font" -h $panel_height \
+    -e "button3=;button4=exec:$hc_quoted use_index -1;button5=exec:$hc_quoted use_index +1" \
+    -ta l -bg "$bgcolor" -fg '#efefef'
