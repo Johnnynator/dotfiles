@@ -2,6 +2,9 @@
 cd "$(xdistdir)" || exit
 
 case "$1" in
+	-l) FLAG_l=$1; shift
+esac
+case "$1" in
 	-m) FLAG_m=$1; shift
 esac
 case "$1" in
@@ -18,7 +21,7 @@ case "$1" in
 esac
 case "$1" in
 	-u) shift;
-	echo 'Usage: template-updates [-m] [-f] [-b] [-a] [-n] [-u] [kde-framework|plasma|kmail] [version]'
+	echo 'Usage: template-updates [-l] [-m] [-f] [-b] [-a] [-n] [-u] [kde-framework|plasma|kmail] [version]'
 esac
 
 version="$2"
@@ -34,7 +37,7 @@ case "$1" in
 	ci_skip=1
 		;;
 	kde-apps)
-	packages="$(git grep -l -F 'distfiles="${KDE_SITE}/applications/' -- 'srcpkgs/*/template' |
+	packages="$(git grep -l 'distfiles="${KDE_SITE.*}/applications/' -- 'srcpkgs/*/template' |
 		cut -d/ -f2)"
 	ci_skip=1
 		;;
@@ -66,6 +69,28 @@ case "$1" in
 		;;
 esac
 
+if [ "$FLAG_l" = -l ]; then
+	echo "$packages" | tr -d '\n'
+	exit
+fi
+
+amdvlk_update() {
+	for i in $(manifest-amdvlk.py "v-$version" | grep -v master); do
+		sed -i "s/${i%=*}=.*/${i%}/g" "srcpkgs/$_pkg/template"
+	done
+}
+
+plex_media_player_update() {
+	tag=$(curl https://api.github.com/repos/plexinc/plex-media-player/releases/latest 2> /dev/null  | jq -r .name)
+	_buildid_version=$(curl https://raw.githubusercontent.com/plexinc/plex-media-player/${tag}/CMakeModules/WebClient.cmake 2> /dev/null| grep -Po 'set\(WEB_CLIENT_BUILD_ID \K[\d-\w]+')
+	_clientdesktop_version=$(curl https://artifacts.plex.tv/web-client-pmp/${_buildid_version}/buildid.cmake 2> /dev/null | grep -Po 'set\(DESKTOP_VERSION \K[\.\d\w-]+')
+	_clienttv_version=$(curl https://artifacts.plex.tv/web-client-pmp/${_buildid_version}/buildid.cmake 2> /dev/null | grep -Po 'set\(TV_VERSION \K[\.\d\w-]+')
+	sed -e "s/^_buildid_version=.*/_buildid_version=${_buildid_version}/g" \
+		-e "s/^_clientdesktop_version=.*/_clientdesktop_version=${_clientdesktop_version}/g" \
+		-e "s/^_clienttv_version=.*/_clienttv_version=${_clienttv_version}/g" \
+		-e "s/^_commit_rev=.*/_commit_rev=${tag#*-}/g" -i "srcpkgs/$_pkg/template"
+}
+
 cd "$(xdistdir)" &&
 for _pkg in $packages; do
 	if [ "$1" = dev ] || [ $dev ]; then
@@ -78,11 +103,8 @@ for _pkg in $packages; do
 	else
 		echo "Update $_pkg to $version"
 		case $_pkg in
-			amdvlk)
-				for i in $(manifest-amdvlk.py "v-$version" | grep -v master); do
-					sed -i "s/${i%=*}=.*/${i%}/g" "srcpkgs/$_pkg/template"
-				done
-				;;
+			amdvlk) amdvlk_update ;;
+			plex-media-player) plex_media_player_update ;;
 		esac
 		sed -i -e "s/^version=.*/version=${version}/g" "srcpkgs/$_pkg/template"
 		sed -i -e "s/^revision=.*/revision=1/g" "srcpkgs/$_pkg/template"
