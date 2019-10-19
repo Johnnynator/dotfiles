@@ -1,0 +1,115 @@
+#/usr/bin/env sh
+
+if [ $# -lt 1 ]; then
+	echo "Usage: $0 [opts] <app> <cmd> [cmdargs]" >&2
+	exit 1
+fi
+
+DEPS="libEGL libpulseaudio"
+GPU_DEPS="$(xbps-query -p pkgver mesa-intel-dri)"
+GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver mesa-ati-dri)"
+GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver mesa-nouveau-dri)"
+GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver mesa-tegra-dri)"
+GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver mesa-vc4-dri)"
+GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver mesa-vmwgfx-dri)"
+
+if [ "$1" = -c ]; then
+	FLAG_c="$1"
+	shift
+fi
+
+if [ "$1" = -x ]; then
+	FLAG_x="$1"
+	shift
+fi
+
+APP="$1"
+CMD="$2"
+if [ -z "$CMD" ]; then
+	CMD="$APP"
+	shift 1
+else
+	shift 2
+fi
+CMDARGS="$@"
+
+: {ARCH:=$(xbps-uhelper arch)}
+
+REPOS="--repository=http://127.0.0.1:8080"
+REPOS="$REPOS --repository=http://127.0.0.1:8080/nonfree"
+REPOS="$REPOS --repository=http://127.0.0.1:8080/debug"
+
+case "$ARCH" in
+i686|x86_64)
+	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current"
+	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/nonfree"
+	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/multilib"
+	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/multilib/nonfree"
+	;;
+*-musl)
+	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/musl"
+	;;
+esac
+
+APPVER=$(XBPS_TARGET_ARCH=$ARCH xbps-query ${REPOS} -Mi -p pkgver $APP 2>/dev/null)
+if [ -z "$APPVER" ]; then
+	echo "$0: cannot find $APP package!" >&2
+	exit 1
+fi
+
+CACHEDIR=$HOME/xbps-sandbox/cachedir-${ARCH}
+SBOXDIR=$HOME/xbps-sandbox/${APPVER}-${ARCH}
+
+if [ ! -d $SBOXDIR ]; then
+	mkdir -p $CACHEDIR
+	echo "Installing $APPVER application, please wait..."
+	XBPS_TARGET_ARCH=$ARCH xbps-install -S \
+		--cachedir $CACHEDIR ${REPOS} \
+		-r $SBOXDIR -Miy \
+		base-files busybox-static $GPU_DEPS xbps $DEPS \
+		$APP || exit 1
+	mkdir -p -m1777 $SBOXDIR/dev/shm
+	mkdir -p -m700 $SBOXDIR/run/user/$UID
+
+	mkdir -p -m755 $SBOXDIR/$HOME
+	mkdir -p $SBOXDIR/usr/share/fonts
+
+	if [ -f $HOME/.Xauthority ]; then
+		cp -f $HOME/.Xauthority $SBOXDIR/$HOME
+	fi
+	for f in services localtime os-release resolv.conf; do
+		cp -fL /etc/$f $SBOXDIR/etc || true
+	done
+
+	if [ -e $SBOXDIR/usr/bin/busybox.static ]; then
+		for f in $($SBOXDIR/usr/bin/busybox.static --list); do
+			ln -s busybox.static ${SBOXDIR}/usr/bin/${f} 2>/dev/null
+		done
+	fi
+
+	ln -s /var/lib/dbus/machine-id $SBOXDIR/etc/
+	ln -s usr/lib $SBOXDIR/lib
+	XBPS_TARGET_ARCH=$ARCH xbps-reconfigure -r $SBOXDIR -f base-files
+	xbps-uunshare $SBOXDIR -- /bin/xbps-reconfigure -fa
+fi
+
+if [ "$FLAG_c" = -c ]; then
+	xbps-uunshare \
+		-b /usr/share/fonts:/usr/share/fonts \
+		-b /dev:/dev -b /dev/shm:/dev/shm \
+		-b /tmp:/tmp -b /home/$USER:/home/$USER \
+		-b /run:/run -b /run/user/$UID:/run/user/$UID \
+		$SBOXDIR -- $CMD $CMDARGS
+elif [ "$FLAG_x" = -x ]; then
+	XBPS_TARGET_ARCH=$ARCH xbps-install -S \
+		--cachedir $CACHEDIR ${REPOS} \
+		-r $SBOXDIR -Miy \
+		$CMD $@
+else
+	nohup xbps-uunshare \
+		-b /usr/share/fonts:/usr/share/fonts \
+		-b /dev:/dev -b /dev/shm:/dev/shm \
+		-b /tmp:/tmp -b /home/$USER:/home/$USER \
+		-b /run:/run -b /run/user/$UID:/run/user/$UID \
+		$SBOXDIR -- $CMD $CMDARGS > $SBOXDIR/var/log/xbps-launch.log 2>&1 >/dev/null &
+fi
