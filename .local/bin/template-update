@@ -21,10 +21,11 @@ case "$1" in
 esac
 case "$1" in
 	-u) shift;
-	echo 'Usage: template-updates [-l] [-m] [-f] [-b] [-a] [-n] [-u] [kde-framework|plasma|kmail] [version]'
+	echo 'Usage: template-updates [-l] [-m] [-f] [-b] [-a] [-u] [kde-framework|plasma|kmail] [version] [fake_version]'
 esac
 
 version="$2"
+fake_version="$3"
 case "$1" in
 	kde-framework)
 	packages="$(git grep -l -F 'distfiles="${KDE_SITE}/frameworks/' -- 'srcpkgs/*/template' |
@@ -76,7 +77,7 @@ fi
 
 amdvlk_update() {
 	for i in $(manifest-amdvlk.py "v-$version" | grep -v master); do
-		sed -i "s/${i%=*}=.*/${i%}/g" "srcpkgs/$_pkg/template"
+		sed -i "s/\$${i%=*}=.*/${i%}/g" "srcpkgs/$_pkg/template"
 	done
 }
 
@@ -128,15 +129,10 @@ for _pkg in $packages; do
 			[ $(git diff --cached --numstat "srcpkgs/$_pkg/template" | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
 			COMMIT=$(git log -n 1 --pretty=format:"%H" "srcpkgs/$_pkg/template")
 			git commit --fixup="$COMMIT"
-		elif [ "$FLAG_n" = -n ]; then
-			git add "srcpkgs/$_pkg/template"
-			[ $(git diff --cached --numstat "srcpkgs/$_pkg/template" | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
-			COMMIT=$(git log -n 1 --pretty=format:"%H" "srcpkgs/$_pkg/template")
-			git commit --fixup="$COMMIT"
 		else
 			xbump "$_pkg"
 			if [ "$ci_skip" ]; then
-				git commit --amend -m "${_pkg}: update to ${version}" -m "[ci skip]"
+				git commit --amend -m "${_pkg}: update to ${fake_version:=${version}}" -m "[ci skip]"
 			fi
 		fi
 	fi
