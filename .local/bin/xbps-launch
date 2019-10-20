@@ -1,4 +1,6 @@
-#/usr/bin/env sh
+#!/usr/bin/env sh
+
+# shellcheck disable=SC2039
 
 if [ $# -lt 1 ]; then
 	echo "Usage: $0 [opts] <app> <cmd> [cmdargs]" >&2
@@ -31,9 +33,10 @@ if [ -z "$CMD" ]; then
 else
 	shift 2
 fi
-CMDARGS="$@"
+CMDARGS="$*"
 
-: {ARCH:=$(xbps-uhelper arch)}
+: ${ARCH:=$(xbps-uhelper arch)}
+: ${UID=$(id -u)}
 
 REPOS="--repository=http://127.0.0.1:8080"
 REPOS="$REPOS --repository=http://127.0.0.1:8080/nonfree"
@@ -89,7 +92,7 @@ if [ ! -d $SBOXDIR ]; then
 
 	ln -s /var/lib/dbus/machine-id $SBOXDIR/etc/
 	ln -s usr/lib $SBOXDIR/lib
-	XBPS_TARGET_ARCH=$ARCH xbps-reconfigure -r $SBOXDIR -f base-files
+	XBPS_ARCH=$ARCH xbps-reconfigure -r $SBOXDIR -f base-files
 	xbps-uunshare $SBOXDIR -- /bin/xbps-reconfigure -fa
 fi
 
@@ -104,7 +107,7 @@ elif [ "$FLAG_x" = -x ]; then
 	XBPS_TARGET_ARCH=$ARCH xbps-install -S \
 		--cachedir $CACHEDIR ${REPOS} \
 		-r $SBOXDIR -Miy \
-		$CMD $@
+		$CMD $CMDARGS
 else
 	nohup xbps-uunshare \
 		-b /usr/share/fonts:/usr/share/fonts \
