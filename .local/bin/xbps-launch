@@ -73,6 +73,7 @@ if [ ! -d $SBOXDIR ]; then
 		$APP || exit 1
 	mkdir -p -m1777 $SBOXDIR/dev/shm
 	mkdir -p -m700 $SBOXDIR/run/user/$UID
+	mkdir -p -m755 $SBOXDIR/var/lib/dbus
 
 	mkdir -p -m755 $SBOXDIR/$HOME
 	mkdir -p $SBOXDIR/usr/share/fonts
@@ -91,6 +92,7 @@ if [ ! -d $SBOXDIR ]; then
 	fi
 
 	ln -s /var/lib/dbus/machine-id $SBOXDIR/etc/
+	cp -f /var/lib/dbus/machine-id $SBOXDIR/var/lib/dbus
 	ln -s usr/lib $SBOXDIR/lib
 	XBPS_ARCH=$ARCH xbps-reconfigure -r $SBOXDIR -f base-files
 	xbps-uunshare $SBOXDIR -- /bin/xbps-reconfigure -fa
