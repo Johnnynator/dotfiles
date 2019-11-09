@@ -17,9 +17,6 @@ case "$1" in
 	-a) FLAG_a=$1; shift
 esac
 case "$1" in
-	-n) FLAG_n=$1; shift
-esac
-case "$1" in
 	-u) shift;
 	echo 'Usage: template-updates [-l] [-m] [-f] [-b] [-a] [-u] [kde-framework|plasma|kmail] [version] [fake_version]'
 esac
@@ -45,10 +42,10 @@ case "$1" in
 	kmail)
 	packages="akonadi-calendar akonadi-contacts akonadi-import-wizard
  akonadi-mime akonadi-notes akonadi-search calendarsupport grantleetheme
- kalarmcal kcalcore kcalutils kdav kdepim-apps-libs kdepim-runtime kimap kldap
+ kalarmcal kcalutils kdav kdepim-apps-libs kdepim-runtime kimap kldap
  kmail kmail-account-wizard kmailtransport kmbox kmime kontactinterface ksmtp
  ktnef libgravatar libkdepim libkgapi libkleo libksieve mailcommon mailimporter
- messagelib pimcommon kpimtextedit kidentitymanagement akonadi5 kcontacts pim-data-exporter"
+ messagelib pimcommon kpimtextedit kidentitymanagement akonadi5 pim-data-exporter"
 	ci_skip=1
 		;;
 	kde-baseapps)
@@ -77,7 +74,7 @@ fi
 
 amdvlk_update() {
 	for i in $(manifest-amdvlk.py "v-$version" | grep -v master); do
-		sed -i "s/\$${i%=*}=.*/${i%}/g" "srcpkgs/$_pkg/template"
+		sed -i "s/^${i%=*}=.*/${i%}/g" "srcpkgs/$_pkg/template"
 	done
 }
 
@@ -111,9 +108,7 @@ for _pkg in $packages; do
 		sed -i -e "s/^revision=.*/revision=1/g" "srcpkgs/$_pkg/template"
 		sed -i -e 's#http.://download.kde.org/stable#${KDE_SITE}#g' "srcpkgs/$_pkg/template"
 		if [ "$FLAG_m" = -m ]; then
-			sed -i -e 's#Denis Revin <denis.revin@gmail.com>#John <johnz@posteo.net>#g' "srcpkgs/$_pkg/template"
-			sed -i -e 's#Juan RP <xtraeme@gmail.com>#John <johnz@posteo.net>#g' "srcpkgs/$_pkg/template"
-			sed -i -e 's#Juan RP <xtraeme@voidlinux.eu>#John <johnz@posteo.net>#g' "srcpkgs/$_pkg/template"
+			sed -i -e 's#Orphaned <orphan@voidlinux.org>#John <johnz@posteo.net>#g' "srcpkgs/$_pkg/template"
 		fi
 		if [ "$FLAG_f" = -f ]; then
 			template-formalize "srcpkgs/$_pkg/template"
