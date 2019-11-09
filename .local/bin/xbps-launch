@@ -2,19 +2,48 @@
 
 # shellcheck disable=SC2039
 
+get_host_gpu_deps() {
+	GPU_LIBS="mesa-intel-dri mesa-ati-dri mesa-nouveau-dri mesa-nouveau-dri
+		mesa-tegra-dri mesa-vc4-dri mesa-vmwgfx-dri nvidia-gtklibs
+		nvidia-libs nvidia390-gtklibs nvidia390-libs nvidia340-libs"
+
+	for lib in $GPU_LIBS; do
+		GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver $lib)"
+	done
+
+	if [ "$GPU_DEPS" = "${GPU_DEPS#*nvidia}" ]; then
+		GPU_DEPS="$GPU_DEPS libEGL"
+	fi
+}
+
+add_local_repos() {
+	local XDISTDIR
+	XDISTDIR="$(xdistdir)"
+	if [ $? -eq 0 ]; then
+		cd "$(xdistdir)" &&
+		local BRANCH=$(git symbolic-ref -q --short HEAD 2>/dev/null)
+		REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs"
+		REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/nonfree"
+		REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/debug"
+		REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/multilib"
+		REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/multilib/nonfree"
+		if [ "$BRANCH" != "master" ]; then
+			REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/$BRANCH"
+			REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/nonfree"
+			REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/debug"
+			REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/multilib"
+			REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/multilib/nonfree"
+		fi
+	fi
+}
+
 if [ $# -lt 1 ]; then
 	echo "Usage: $0 [opts] <app> <cmd> [cmdargs]" >&2
 	exit 1
 fi
 
-DEPS="libEGL libpulseaudio"
-GPU_DEPS="$(xbps-query -p pkgver mesa-intel-dri)"
-GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver mesa-ati-dri)"
-GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver mesa-nouveau-dri)"
-GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver mesa-tegra-dri)"
-GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver mesa-vc4-dri)"
-GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver mesa-vmwgfx-dri)"
 
+DEPS=""
 if [ "$1" = -c ]; then
 	FLAG_c="$1"
 	shift
@@ -22,6 +51,11 @@ fi
 
 if [ "$1" = -x ]; then
 	FLAG_x="$1"
+	shift
+fi
+
+if [ "$1" = -l ]; then
+	FLAG_l="$1"
 	shift
 fi
 
@@ -38,10 +72,6 @@ CMDARGS="$*"
 : ${ARCH:=$(xbps-uhelper arch)}
 : ${UID=$(id -u)}
 
-REPOS="--repository=http://127.0.0.1:8080"
-REPOS="$REPOS --repository=http://127.0.0.1:8080/nonfree"
-REPOS="$REPOS --repository=http://127.0.0.1:8080/debug"
-
 case "$ARCH" in
 i686|x86_64)
 	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current"
@@ -49,12 +79,32 @@ i686|x86_64)
 	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/multilib"
 	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/multilib/nonfree"
 	;;
+aarch64*)
+	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/aarch64"
+	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/aarch64/nonfree"
+	;;
 *-musl)
 	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/musl"
+	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/musl/nonfree"
+	;;
+*)
+	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current"
+	REPOS="$REPOS --repository=https://alpha.de.repo.voidlinux.org/current/nonfree"
 	;;
 esac
 
-APPVER=$(XBPS_TARGET_ARCH=$ARCH xbps-query ${REPOS} -Mi -p pkgver $APP 2>/dev/null)
+if [ "$FLAG_l" = -l ]; then
+	add_local_repos
+fi
+
+if ping -c 1 -W 1 1.1.1.1 >/dev/null 2>&1; then
+	APPVER=$(XBPS_TARGET_ARCH=$ARCH xbps-query ${REPOS} -Mi -p pkgver $APP 2>/dev/null)
+else
+	for i in $HOME/xbps-sandbox/${APP}*-${ARCH}*; do
+		APPVER="$(basename ${i%-${ARCH}})"
+	done
+fi
+
 if [ -z "$APPVER" ]; then
 	echo "$0: cannot find $APP package!" >&2
 	exit 1
@@ -64,6 +114,7 @@ CACHEDIR=$HOME/xbps-sandbox/cachedir-${ARCH}
 SBOXDIR=$HOME/xbps-sandbox/${APPVER}-${ARCH}
 
 if [ ! -d $SBOXDIR ]; then
+	get_host_gpu_deps
 	mkdir -p $CACHEDIR
 	echo "Installing $APPVER application, please wait..."
 	XBPS_TARGET_ARCH=$ARCH xbps-install -S \
@@ -91,6 +142,8 @@ if [ ! -d $SBOXDIR ]; then
 		done
 	fi
 
+	echo $USER:x:$UID:$(id -g)::$HOME:/bin/sh >> $SBOXDIR/etc/passwd
+	echo $(id -gn):x:$(id -g): >> $SBOXDIR/etc/group
 	ln -s /var/lib/dbus/machine-id $SBOXDIR/etc/
 	cp -f /var/lib/dbus/machine-id $SBOXDIR/var/lib/dbus
 	ln -s usr/lib $SBOXDIR/lib
