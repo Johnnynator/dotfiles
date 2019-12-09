@@ -104,17 +104,15 @@ for _pkg in $packages; do
 			amdvlk) amdvlk_update ;;
 			plex-media-player) plex_media_player_update ;;
 		esac
-		sed -i -e "s/^version=.*/version=${version}/g" "srcpkgs/$_pkg/template"
-		sed -i -e "s/^revision=.*/revision=1/g" "srcpkgs/$_pkg/template"
-		sed -i -e 's#http.://download.kde.org/stable#${KDE_SITE}#g' "srcpkgs/$_pkg/template"
+		sed -e "s/^version=.*/version=${version}/g" \
+			-e "s/^revision=.*/revision=1/g" \
+			-e 's#http.://download.kde.org/stable#${KDE_SITE}#g' \
+			-i "srcpkgs/$_pkg/template"
 		if [ "$FLAG_m" = -m ]; then
 			sed -i -e 's#Orphaned <orphan@voidlinux.org>#John <johnz@posteo.net>#g' "srcpkgs/$_pkg/template"
 		fi
-		if [ "$FLAG_f" = -f ]; then
-			template-formalize "srcpkgs/$_pkg/template"
-		fi
 		if [ "$FLAG_b" = -b ]; then
-			sed -i -e 's#KDE_SITE#KDE_SITE/stable/unstable#g' "srcpkgs/$_pkg/template"
+			sed -i -e 's#{KDE_SITE}#{KDE_SITE/stable/unstable}#g' "srcpkgs/$_pkg/template"
 		else
 			sed -i -e 's#{KDE_SITE/stable/unstable}#{KDE_SITE}#g' "srcpkgs/$_pkg/template"
 		fi
