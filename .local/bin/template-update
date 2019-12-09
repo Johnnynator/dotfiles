@@ -1,29 +1,28 @@
 #!/usr/bin/sh
 cd "$(xdistdir)" || exit
 
-case "$1" in
-	-l) FLAG_l=$1; shift
-esac
-case "$1" in
-	-m) FLAG_m=$1; shift
-esac
-case "$1" in
-	-f) FLAG_f=$1; shift
-esac
-case "$1" in
-	-b) FLAG_b=$1; shift
-esac
-case "$1" in
-	-a) FLAG_a=$1; shift
-esac
-case "$1" in
-	-u) shift;
-	echo 'Usage: template-updates [-l] [-m] [-f] [-b] [-a] [-u] [kde-framework|plasma|kmail] [version] [fake_version]'
-esac
+while [ $# -gt 0 ]; do
+	case "$1" in
+		-l) FLAG_l=$1; shift;;
+		-m) FLAG_m=$1; shift;;
+		-b) FLAG_b=$1; shift;;
+		-a) FLAG_a=$1; shift;;
+		-u) FLAG_u=$1; shift;;
+		-*) echo "[Error] Unkown option $1"
+		    exit 1;;
+		*) package=$1;
+		   version=$2;
+		   fake_version="$3";
+		   shift $#;;
+	esac
+done
 
-version="$2"
-fake_version="$3"
-case "$1" in
+if [ "$FLAG_u" = -u ]; then
+	echo 'Usage: template-updates [-l] [-m] [-b] [-a] [-u] [package|pacakge set] [version] [fake_version]'
+	exit
+fi
+
+case "$package" in
 	kde-framework)
 	packages="$(git grep -l -F 'distfiles="${KDE_SITE}/frameworks/' -- 'srcpkgs/*/template' |
 		cut -d/ -f2)"
@@ -62,7 +61,7 @@ case "$1" in
 	packages="$(git diff --name-status FETCH_HEAD...HEAD | grep "^[AM].*srcpkgs/[^/]*/template$" | cut -d/ -f 2)"
 		;;
 	*) 
-	packages="$1"
+	packages="$package"
 	dev=1
 		;;
 esac
@@ -91,7 +90,7 @@ plex_media_player_update() {
 
 cd "$(xdistdir)" &&
 for _pkg in $packages; do
-	if [ "$1" = dev ] || [ $dev ]; then
+	if [ "$package" = dev ] || [ $dev ]; then
 		version=$(./xbps-src update-check "$_pkg")
 		version=${version##*${_pkg}-}
 		echo "${version}"
