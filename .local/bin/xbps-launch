@@ -8,12 +8,11 @@ get_host_gpu_deps() {
 		nvidia-libs nvidia390-gtklibs nvidia390-libs nvidia340-libs"
 
 	for lib in $GPU_LIBS; do
-		GPU_DEPS="$GPU_DEPS $(xbps-query -p pkgver $lib)"
+		dep=$(xbps-query -p pkgver $lib)
+		if [ $? -eq 0 ]; then
+			GPU_DEPS="$GPU_DEPS $(xbps-uhelper getpkgname $dep)"
+		fi
 	done
-
-	if [ "$GPU_DEPS" = "${GPU_DEPS#*nvidia}" ]; then
-		GPU_DEPS="$GPU_DEPS libEGL"
-	fi
 }
 
 add_local_repos() {
