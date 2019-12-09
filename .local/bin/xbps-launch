@@ -22,17 +22,17 @@ add_local_repos() {
 	if [ $? -eq 0 ]; then
 		cd "$(xdistdir)" &&
 		local BRANCH=$(git symbolic-ref -q --short HEAD 2>/dev/null)
-		REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs"
-		REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/nonfree"
-		REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/debug"
-		REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/multilib"
-		REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/multilib/nonfree"
+		REPOS="--repository=$XDISTDIR/hostdir/binpkgs $REPOS"
+		REPOS="--repository=$XDISTDIR/hostdir/binpkgs/nonfree $REPOS"
+		REPOS="--repository=$XDISTDIR/hostdir/binpkgs/debug $REPOS"
+		REPOS="--repository=$XDISTDIR/hostdir/binpkgs/multilib $REPOS"
+		REPOS="--repository=$XDISTDIR/hostdir/binpkgs/multilib/nonfree $REPOS"
 		if [ "$BRANCH" != "master" ]; then
-			REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/$BRANCH"
-			REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/nonfree"
-			REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/debug"
-			REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/multilib"
-			REPOS="$REPOS --repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/multilib/nonfree"
+			REPOS="--repository=$XDISTDIR/hostdir/binpkgs/$BRANCH $REPOS"
+			REPOS="--repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/nonfree $REPOS"
+			REPOS="--repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/debug $REPOS"
+			REPOS="--repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/multilib $REPOS"
+			REPOS="--repository=$XDISTDIR/hostdir/binpkgs/$BRANCH/multilib/nonfree $REPOS"
 		fi
 	fi
 }
