@@ -8,6 +8,7 @@ while [ $# -gt 0 ]; do
 		-b) FLAG_b=$1; shift;;
 		-a) FLAG_a=$1; shift;;
 		-u) FLAG_u=$1; shift;;
+		-p) FLAG_p=$1; branch=$2; shift; shift;;
 		-*) echo "[Error] Unkown option $1"
 		    exit 1;;
 		*) package=$1;
@@ -18,7 +19,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$FLAG_u" = -u ]; then
-	echo 'Usage: template-updates [-l] [-m] [-b] [-a] [-u] [package|pacakge set] [version] [fake_version]'
+	echo 'Usage: template-updates [-l] [-m] [-b] [-a] [-u] [-p] [package|pacakge set] [version] [fake_version]'
 	exit
 fi
 
@@ -34,7 +35,7 @@ case "$package" in
 	ci_skip=1
 		;;
 	kde-apps)
-	packages="$(git grep -l 'distfiles="${KDE_SITE.*}/applications/' -- 'srcpkgs/*/template' |
+	packages="$(git grep -l 'distfiles="${KDE_SITE.*}/release-service/' -- 'srcpkgs/*/template' |
 		cut -d/ -f2)"
 	ci_skip=1
 		;;
@@ -90,6 +91,10 @@ plex_media_player_update() {
 
 cd "$(xdistdir)" &&
 for _pkg in $packages; do
+	if [ "$FLAG_p"  = -p ]; then
+		commit="$(git log -n 1 --pretty=format:"%H" "$branch" "srcpkgs/$_pkg/template")"
+		git cherry-pick $commit
+	else
 	if [ "$package" = dev ] || [ $dev ]; then
 		version=$(./xbps-src update-check "$_pkg")
 		version=${version##*${_pkg}-}
@@ -113,7 +118,7 @@ for _pkg in $packages; do
 		if [ "$FLAG_b" = -b ]; then
 			sed -i -e 's#{KDE_SITE}#{KDE_SITE/stable/unstable}#g' "srcpkgs/$_pkg/template"
 		else
-			sed -i -e 's#{KDE_SITE/stable/unstable}#{KDE_SITE}#g' "srcpkgs/$_pkg/template"
+			sed -i -e 's#{KDE_SITE/stable/unstable}/applications#{KDE_SITE}/release-service#g' "srcpkgs/$_pkg/template"
 		fi
 		xgensum -i "srcpkgs/$_pkg/template"
 		if [ "$FLAG_a" = -a ]; then
@@ -127,5 +132,6 @@ for _pkg in $packages; do
 				git commit --amend -m "${_pkg}: update to ${fake_version:=${version}}" -m "[ci skip]"
 			fi
 		fi
+	fi
 	fi
 done
