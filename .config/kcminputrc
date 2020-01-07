@@ -1,0 +1,15 @@
+[Keyboard]
+KeyboardRepeating=0
+NumLock=0
+RepeatDelay=600
+RepeatRate=25
+
+[Libinput][4152][5902][SteelSeries SteelSeries Rival 500 Gaming Mouse]
+PointerAcceleration=0.000
+PointerAccelerationProfile=1
+
+[Mouse]
+XLbInptAccelProfileFlat=true
+XLbInptPointerAcceleration=0
+cursorSize=24
+cursorTheme=breeze_cursors
