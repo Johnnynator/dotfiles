@@ -1,0 +1,44 @@
+#!/usr/bin/env sh
+
+LOGDIR="$HOME/.local/share/starconflict/logs"
+
+get_ips() {
+	while read -r line; do
+		case "$line" in
+			*MasterServerEndpoint:\ connected\ to\ load\ balancer*)
+				loadBalancer=${line##*balancer }
+				loadBalancer=${loadBalancer%%:*}
+				echo "master server load balancer ${loadBalancer}";;
+			*MasterServerEndpoint:\ received\ chat\ server*) 
+				chatServer=${line##*(}
+				chatServer=${chatServer%%:*)*}
+				echo "master server chat server ${chatServer}";;
+			*MasterServerEndpoint:\ connected\ to\ shard*) 
+				shardServer=${line##*shard }
+				shardServer=${shardServer%%:*}
+				echo "master server shard server ${shardServer}";;
+			*client:\ connected\ to*)
+				deticatedServer=${line##*connected to }
+				deticatedServer=${deticatedServer%%|*}
+				echo "game deticated server ${deticatedServer}";;
+		esac
+	done < "$1"game.log
+}
+
+get_server_status() {
+	if command -v curl >/dev/null 2>&1; then
+		curl http://adm.star-conflict.com/status
+	elif command -v wget >/dev/null 2>&1; then
+		wget http://adm.star-conflict.com/status -o /dev/null -O -
+	else
+		printf >&2 "\033[1m\033[31mERROR: Can't find curl/wget\033[m"
+	fi
+}
+
+sdir=$1
+if [ -z "$sdir" ]; then
+	for sdir in "$LOGDIR"/20[0-9][0-9].[0-9][0-9].[0-9][0-9]\ [0-9][0-9].[0-9][0-9].[0-9][0-9].[0-9][0-9][0-9]; do true; done
+fi
+echo "Logdir: $sdir"
+get_ips "$sdir/"
+get_server_status
