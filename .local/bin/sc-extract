@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+: "${SC_VERSION=$(sc-version)}"
+grep -qs '/media/StarConflict' /proc/mounts || { echo "/media/StarConflict is not mounted"; exit 1; }
+quickbms \
+	-o /media/StarConflict/quickbms/clutch.bms \
+	"${HOME}"/.local/share/Steam/steamapps/common/star\ conflict/data/ \
+	/media/StarConflict/unpackedFiles-"${SC_VERSION}"
