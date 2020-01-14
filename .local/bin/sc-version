@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+strings "$HOME"/.local/share/Steam/steamapps/common/star\ conflict/StarConflict | grep -Po 'Build.*:..\K1[\w\d\.]+' | head -n1
