@@ -1,0 +1,13 @@
+[user]
+	name = John Zimmermann
+	email = johnz@posteo.net
+	signingkey = 36D89970D1A6D23071E8E090D4DDE31595437B9B
+[color]
+	ui = auto
+[gpg]
+	program = gpg2
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
