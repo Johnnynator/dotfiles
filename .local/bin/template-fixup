@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
 cd "$(xdistdir)" || exit
 
-packages="$(git diff --name-status HEAD | grep "^[AM].*srcpkgs/[^/]*/template$" | cut -d/ -f 2)"
+packages="$(git diff --name-status HEAD | grep "^[AM].*srcpkgs/[^/]*/" | cut -d/ -f 2)"
 
 for _pkg in $packages; do
-	git add "srcpkgs/$_pkg/template"
-	[ $(git diff --cached --numstat "srcpkgs/$_pkg/template" | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
-	COMMIT=$(git log -n 1 --pretty=format:"%H" "srcpkgs/$_pkg/template")
+	git add "srcpkgs/$_pkg"
+	[ $(git diff --cached --numstat "srcpkgs/$_pkg/" | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
+	COMMIT=$(git log -n 1 --pretty=format:"%H" "srcpkgs/$_pkg/")
 	git commit --fixup="$COMMIT"
 done
