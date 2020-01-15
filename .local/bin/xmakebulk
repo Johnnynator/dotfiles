@@ -1,0 +1,35 @@
+#!/bin/sh
+# xbulk [-n] [-k] [xbps-src flags...] PKGS... - simple XBPS bulk builder
+
+ARGS=
+MAKEARGS=
+PKGS=
+
+mainpkg() {
+	dir=$(readlink -f srcpkgs/"$1")
+	echo ${dir##*/}
+}
+
+while [ $# -gt 0 ]; do
+	case $1 in
+		-n|-k) MAKEARGS="$MAKEARGS $1";;
+		-a|-H|-m|-o|-r) ARGS="$ARGS $1 $2"; shift;;
+		-*) ARGS="$ARGS $1";;
+		*) PKGS="$PKGS
+$(mainpkg $1)"
+	esac
+	shift
+done
+
+{
+for pkg in $PKGS; do
+	echo all: pkg-$pkg
+	for dep in $(./xbps-src $ARGS show-build-deps $pkg |
+			sed 's|[<>].*$||g'); do
+		mainpkg $dep |
+		grep -Fx "$PKGS" |
+		sed 's/^/pkg-'$pkg': pkg-/'
+	done
+done
+printf '%s\n' pkg-%: "	pkg=\$@; ./xbps-src $ARGS pkg \$\${pkg#pkg-} \$(ARGS)"
+} > Makefile
