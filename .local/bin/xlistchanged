@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+git diff --name-status upstream/master...HEAD | grep "^[AM].*srcpkgs/[^/]*/template$" | cut -d/ -f 2 | tr '\n' ' '
