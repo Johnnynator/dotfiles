@@ -1,0 +1,2 @@
+#!/bin/sh
+sudo env XBPS_TARGET_ARCH=i686-musl xbps-install -r /usr/i686-linux-musl --repository=https://repo.voidlinux.de/current/ "$@"
