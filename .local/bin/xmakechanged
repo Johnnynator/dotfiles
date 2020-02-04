@@ -1,2 +1,2 @@
 #!/usr/bin/env sh
-xmakebulk -t "$@" "$(xlistchanged)"
+xmakebulk -t "$@" $(xlistchanged)
