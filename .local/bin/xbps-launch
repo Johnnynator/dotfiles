@@ -3,8 +3,7 @@
 # shellcheck disable=SC2039
 
 get_host_gpu_deps() {
-	GPU_LIBS="mesa-intel-dri mesa-ati-dri mesa-nouveau-dri mesa-nouveau-dri
-		mesa-tegra-dri mesa-vc4-dri mesa-vmwgfx-dri nvidia-gtklibs
+	GPU_LIBS="mesa-dri mesa-vulkan-intel mesa-vulkan-radeon nvidia-gtklibs
 		nvidia-libs nvidia390-gtklibs nvidia390-libs nvidia340-libs"
 
 	for lib in $GPU_LIBS; do
@@ -56,6 +55,12 @@ fi
 if [ "$1" = -l ]; then
 	FLAG_l="$1"
 	shift
+fi
+
+if [ "$1" = -s ]; then
+	FLAG_s="$1"
+	SBOXDIR="$2"
+	shift 2
 fi
 
 APP="$1"
@@ -110,7 +115,7 @@ if [ -z "$APPVER" ]; then
 fi
 
 CACHEDIR=$HOME/xbps-sandbox/cachedir-${ARCH}
-SBOXDIR=$HOME/xbps-sandbox/${APPVER}-${ARCH}
+: ${SBOXDIR:=$HOME/xbps-sandbox/${APPVER}-${ARCH}}
 
 if [ ! -d $SBOXDIR ]; then
 	get_host_gpu_deps
