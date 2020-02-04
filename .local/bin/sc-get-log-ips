@@ -17,8 +17,8 @@ get_ips() {
 				shardServer=${line##*shard }
 				shardServer=${shardServer%%:*}
 				echo "master server shard server ${shardServer}";;
-			*client:\ connected\ to*)
-				deticatedServer=${line##*connected to }
+			*client:\ start\ connecting\ to*)
+				deticatedServer=${line##*connecting to }
 				deticatedServer=${deticatedServer%%|*}
 				echo "game deticated server ${deticatedServer}";;
 		esac
