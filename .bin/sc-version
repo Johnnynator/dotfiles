@@ -1,2 +1,6 @@
 #!/usr/bin/env sh
-strings "$HOME"/.local/share/Steam/steamapps/common/star\ conflict/StarConflict | grep -Po 'Build.*:..\K1[\w\d\.]+' | head -n1
+scpath="$HOME/.local/share/Steam/steamapps/common/star conflict/StarConflict";
+if [ "$1" = "-p" ]; then
+	scpath="$HOME/Games/star-conflict-64bit/drive_c/users/john/Local Settings/Application Data/StarConflict-pub/game.exe"
+fi
+strings "$scpath"| grep -Po 'Build.*:..\K1[\w\d\.]+' | head -n1

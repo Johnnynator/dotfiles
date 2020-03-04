@@ -1,7 +1,11 @@
 #!/usr/bin/env sh
-: "${SC_VERSION=$(sc-version)}"
+scpath="$HOME/.local/share/Steam/steamapps/common/star conflict/data";
+if [ "$1" = "-p" ]; then
+	scpath="$HOME/Games/star-conflict-64bit/drive_c/users/john/Local Settings/Application Data/StarConflict-pub/data"
+fi
+: "${SC_VERSION=$(sc-version "$1")}"
 grep -qs '/media/StarConflict' /proc/mounts || { echo "/media/StarConflict is not mounted"; exit 1; }
 quickbms \
 	-o /media/StarConflict/quickbms/clutch.bms \
-	"${HOME}"/.local/share/Steam/steamapps/common/star\ conflict/data/ \
+	"$scpath" \
 	/media/StarConflict/unpackedFiles-"${SC_VERSION}"
