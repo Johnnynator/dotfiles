@@ -118,7 +118,7 @@ for _pkg in $packages; do
 		if [ "$FLAG_b" = -b ]; then
 			sed -i -e 's#{KDE_SITE}#{KDE_SITE/stable/unstable}#g' "srcpkgs/$_pkg/template"
 		else
-			sed -i -e 's#{KDE_SITE/stable/unstable}/applications#{KDE_SITE}/release-service#g' "srcpkgs/$_pkg/template"
+			sed -i -e 's#{KDE_SITE/stable/unstable}#{KDE_SITE}#g' "srcpkgs/$_pkg/template"
 		fi
 		xgensum -i "srcpkgs/$_pkg/template"
 		if [ "$FLAG_a" = -a ]; then
