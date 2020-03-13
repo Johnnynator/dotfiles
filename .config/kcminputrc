@@ -4,6 +4,10 @@ NumLock=0
 RepeatDelay=600
 RepeatRate=25
 
+[Libinput][1739][0][Synaptics TM2668-002]
+DisableWhileTyping=false
+NaturalScroll=false
+
 [Libinput][4152][5902][SteelSeries SteelSeries Rival 500 Gaming Mouse]
 PointerAcceleration=0.000
 PointerAccelerationProfile=1
