@@ -1,0 +1,4 @@
+{% if yadm.class == "sndio" % }
+ao=sndio
+{% endif %}
+ytdl-format=bestvideo[height<=?1440]+bestaudio/best
