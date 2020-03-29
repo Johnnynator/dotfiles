@@ -1,7 +1,7 @@
 [user]
 	name = John Zimmermann
-	email = johnz@posteo.net
-	signingkey = 36D89970D1A6D23071E8E090D4DDE31595437B9B
+	email = me@johnnynator.dev
+	signingkey = 29EB83169FB3714415F2D6B95FDE97AF468A09B7
 [color]
 	ui = auto
 [gpg]
@@ -11,3 +11,5 @@
 	process = git-lfs filter-process
 	required = true
 	clean = git-lfs clean -- %f
+[commit]
+	gpgsign = true
