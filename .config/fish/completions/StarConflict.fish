@@ -1,16 +1,7 @@
 # StarConflict
 
 function get_files -d 'get packaged files' --argument filter
-	set -l cache_file /tmp/.starconflict-cache.$USER
-	if test -f $cache_file
-		cat $cache_file | grep $filter
-		set -l age (math (date +%s) - (stat -c '%Y' $cache_file))
-		set -l max_age 3600
-		if test $age -lt $max_age
-			return
-		end
-	end
-	quickbms -l /home/john/.local/share/quickbms/clutch.bms data/ 2>/dev/null | awk '{print $3}' >$cache_file &
+	tpak -l 2>/dev/null
 end
 
 complete -f -c StarConflict
