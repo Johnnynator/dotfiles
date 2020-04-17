@@ -1,7 +1,7 @@
 # StarConflict
 
 function get_files -d 'get packaged files' --argument filter
-	tpak -l 2>/dev/null
+	tpak -l | grep $filter 2>/dev/null
 end
 
 complete -f -c StarConflict
