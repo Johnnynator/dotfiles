@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+if ! source "srcpkgs/$1/template" 2>/dev/null; then
+	echo "failed to read $1!"
+fi
+
+for hmpg in $homepage; do
+	if ! newpg="$(curl -ILs -o /dev/null -w %{url_effective} "$hmpg")"; then
+		echo "$hmpg doesn't exists anymore, pls input a new homepage:"
+		read -r newpg
+		sed -e "s^$hmpg^$newpg^g" -i "srcpkgs/$1/template"
+	else
+		if ! [ "$newpg" = "$hmpg" ]; then
+			echo "$hmpg redirects to $newpg, rewriting homepage"
+			sed -e "s^$hmpg^$newpg^g" -i "srcpkgs/$1/template"
+		fi
+	fi
+done
