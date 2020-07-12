@@ -78,6 +78,15 @@ amdvlk_update() {
 	done
 }
 
+gitsub_update() {
+	git -C $1 fetch origin
+	tag=$(git -C $1 tag | fzf -q $2)
+	git checkout $tag
+	for i in $(submodules.py --no-urls $1); do
+		sed -i "s/^${i%=*}=.*/${i%}/g" "srcpkgs/$_pkg/template"
+	done
+}
+
 plex_media_player_update() {
 	tag=$(curl https://api.github.com/repos/plexinc/plex-media-player/releases/latest 2> /dev/null  | jq -r .name)
 	_buildid_version=$(curl https://raw.githubusercontent.com/plexinc/plex-media-player/${tag}/CMakeModules/WebClient.cmake 2> /dev/null| grep -Po 'set\(WEB_CLIENT_BUILD_ID \K[\d-\w]+')
@@ -107,6 +116,8 @@ for _pkg in $packages; do
 		case $_pkg in
 			amdvlk) amdvlk_update ;;
 			plex-media-player) plex_media_player_update ;;
+			rpcs3) gitsub_update ~/Projects/rpcs3;;
+			ppsspp) gitsub_update ~/Projects/ppsspp;;
 		esac
 		sed -e "s/^version=.*/version=${version}/g" \
 			-e "s/^revision=.*/revision=1/g" \
