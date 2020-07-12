@@ -8,6 +8,7 @@ while [ $# -gt 0 ]; do
 		-b) FLAG_b=$1; shift;;
 		-a) FLAG_a=$1; shift;;
 		-u) FLAG_u=$1; shift;;
+		-s) FLAG_s=$1; shift;;
 		-p) FLAG_p=$1; branch=$2; shift; shift;;
 		-r) FLAG_r=$1; shift;;
 		-*) echo "[Error] Unkown option $1"
@@ -20,7 +21,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$FLAG_u" = -u ]; then
-	echo 'Usage: template-updates [-l] [-m] [-b] [-a] [-u] [-p] [-r] [package|pacakge set] [version] [fake_version]'
+	echo 'Usage: template-updates [-l] [-m] [-b] [-a] [-u] [-p] [-s] [-r] [package|pacakge set] [version] [fake_version]'
 	exit
 fi
 
@@ -135,6 +136,9 @@ for _pkg in $packages; do
 			sed -i -e 's#{KDE_SITE}#{KDE_SITE/stable/unstable}#g' "srcpkgs/$_pkg/template"
 		else
 			sed -i -e 's#{KDE_SITE/stable/unstable}#{KDE_SITE}#g' "srcpkgs/$_pkg/template"
+		fi
+		if [ "$FLAG_s" = -s ]; then
+			sed -i -e 's#plasma/\${version}#plasma/${version%.*}#g' "srcpkgs/$_pkg/template"
 		fi
 		xgensum -i "srcpkgs/$_pkg/template"
 		if [ "$FLAG_a" = -a ]; then
