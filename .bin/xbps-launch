@@ -104,8 +104,8 @@ fi
 if ping -c 1 -W 1 1.1.1.1 >/dev/null 2>&1; then
 	APPVER=$(XBPS_TARGET_ARCH=$ARCH xbps-query ${REPOS} -Mi -p pkgver $APP 2>/dev/null)
 else
-	for i in $HOME/xbps-sandbox/${APP}*-${ARCH}*; do
-		APPVER="$(basename ${i%-${ARCH}})"
+	for i in $HOME/xbps-sandbox/${APP}*-${ARCH}; do
+		[ -d "$i" ] && APPVER="$(basename ${i%-${ARCH}})"
 	done
 fi
 
