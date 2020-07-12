@@ -9,6 +9,7 @@ while [ $# -gt 0 ]; do
 		-a) FLAG_a=$1; shift;;
 		-u) FLAG_u=$1; shift;;
 		-p) FLAG_p=$1; branch=$2; shift; shift;;
+		-r) FLAG_r=$1; shift;;
 		-*) echo "[Error] Unkown option $1"
 		    exit 1;;
 		*) package=$1;
@@ -19,7 +20,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$FLAG_u" = -u ]; then
-	echo 'Usage: template-updates [-l] [-m] [-b] [-a] [-u] [-p] [package|pacakge set] [version] [fake_version]'
+	echo 'Usage: template-updates [-l] [-m] [-b] [-a] [-u] [-p] [-r] [package|pacakge set] [version] [fake_version]'
 	exit
 fi
 
@@ -113,6 +114,10 @@ for _pkg in $packages; do
 		echo "$_pkg is aleady $version"
 	else
 		echo "Update $_pkg to $version"
+		if [ "$FLAG_r" = -r ]; then
+			echo "Checking homepage of $_pkg"
+			xcheckhomepage $_pkg
+		fi
 		case $_pkg in
 			amdvlk) amdvlk_update ;;
 			plex-media-player) plex_media_player_update ;;
