@@ -21,7 +21,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$FLAG_u" = -u ]; then
-	echo 'Usage: template-updates [-l] [-m] [-b] [-a] [-u] [-p] [-s] [-r] [package|pacakge set] [version] [fake_version]'
+	echo 'Usage: template-updates [-l] [-m] [-b] [-a] [-u] [-p] [-s] [-r] [package|package set] [version] [fake_version]'
 	exit
 fi
 
