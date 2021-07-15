@@ -29,30 +29,33 @@ case "$package" in
 	kde-framework)
 	packages="$(git grep -l -F 'distfiles="${KDE_SITE}/frameworks/' -- 'srcpkgs/*/template' |
 		cut -d/ -f2)"
-	ci_skip=1
 		;;
 	plasma)
 	packages="$(git grep -l 'distfiles="${KDE_SITE.*}/plasma/' -- 'srcpkgs/*/template' |
 		cut -d/ -f2)"
-	ci_skip=1
 		;;
 	kde-apps)
 	packages="$(git grep -l 'distfiles="${KDE_SITE.*}/release-service/' -- 'srcpkgs/*/template' |
 		cut -d/ -f2)"
-	ci_skip=1
+		;;
+	kde-orphan)
+	packages="$(git grep -l -e 'distfiles="${KDE_SITE.*}/release-service/' -- 'srcpkgs/*/template' | xargs grep -l -e 'maintainer="Orphaned' |
+		cut -d/ -f2)"
+		;;
+	kde-mine)
+	packages="$(git grep -l -e 'distfiles="${KDE_SITE.*}/release-service/' -- 'srcpkgs/*/template' | xargs grep -l -e 'maintainer="John <me@' |
+		cut -d/ -f2)"
 		;;
 	kmail)
 	packages="akonadi-calendar akonadi-contacts akonadi-import-wizard
  akonadi-mime akonadi-notes akonadi-search calendarsupport grantleetheme
- kalarmcal kcalutils kdav kdepim-apps-libs kdepim-runtime kimap kldap
+ kalarmcal kcalutils kdepim-runtime kimap kldap
  kmail kmail-account-wizard kmailtransport kmbox kmime kontactinterface ksmtp
- ktnef libgravatar libkdepim libkgapi libkleo libksieve mailcommon mailimporter
+ ktnef libgravatar libkdepim libkgapi libkleo kleopatra libksieve mailcommon mailimporter
  messagelib pimcommon kpimtextedit kidentitymanagement akonadi5 pim-data-exporter"
-	ci_skip=1
 		;;
 	kde-baseapps)
-	packages="kde5-baseapps dolphin khelpcenter kate5 konsole baloo-widgets5"
-	ci_skip=1
+	packages="kde5-baseapps dolphin dolphin-plugins khelpcenter kate5 konsole baloo-widgets5 kio-extras"
 		;;
 	okular)
 	packages="okular libkexiv25"
@@ -60,17 +63,23 @@ case "$package" in
 	spectacle)
 	packages="spectacle libkipi5"
 		;;
+	qt5)
+	packages="$(git grep -l 'distfiles="http://download.qt.io/official_releases' -- 'srcpkgs/*/template' | cut -d/ -f2)"
+		;;
+	qt6)
+	packages="$(git grep -l 'pkgname=qt6-' -- 'srcpkgs/*/template' | cut -d/ -f2)"
+		;;
+
 	dev)
 	packages="$(git diff --name-status FETCH_HEAD...HEAD | grep "^[AM].*srcpkgs/[^/]*/template$" | cut -d/ -f 2)"
 		;;
 	*) 
 	packages="$package"
-	dev=1
 		;;
 esac
 
 if [ "$FLAG_l" = -l ]; then
-	echo "$packages" | tr -d '\n'
+	echo "$packages" | tr '\n' ' '
 	exit
 fi
 
@@ -106,52 +115,60 @@ for _pkg in $packages; do
 		commit="$(git log -n 1 --pretty=format:"%H" "$branch" "srcpkgs/$_pkg/template")"
 		git cherry-pick $commit
 	else
-	if [ "$package" = dev ] || [ $dev ]; then
-		version=$(./xbps-src update-check "$_pkg")
-		version=${version##*${_pkg}-}
-		echo "${version}"
-	fi
-	if grep -q "version=$version" "srcpkgs/$_pkg/template"; then
-		echo "$_pkg is aleady $version"
-	else
-		echo "Update $_pkg to $version"
-		if [ "$FLAG_r" = -r ]; then
-			echo "Checking homepage of $_pkg"
-			xcheckhomepage $_pkg
+		if [ -z "$version" ]; then
+			version=$(./xbps-src update-check "$_pkg")
+			version=${version##*${_pkg}-}
+			if [ -z "$version" ]; then
+				echo "No update found for $_pkg"
+				continue
+			fi
+			echo "Found ${version} for $pkg"
 		fi
-		case $_pkg in
-			amdvlk) amdvlk_update ;;
-			plex-media-player) plex_media_player_update ;;
-			rpcs3) gitsub_update ~/Projects/rpcs3;;
-			ppsspp) gitsub_update ~/Projects/ppsspp;;
-		esac
-		sed -e "s/^version=.*/version=${version}/g" \
-			-e "s/^revision=.*/revision=1/g" \
-			-e 's#http.://download.kde.org/stable#${KDE_SITE}#g' \
-			-i "srcpkgs/$_pkg/template"
-		if [ "$FLAG_m" = -m ]; then
-			sed -i -e 's#Orphaned <orphan@voidlinux.org>#John <johnz@posteo.net>#g' "srcpkgs/$_pkg/template"
-		fi
-		if [ "$FLAG_b" = -b ]; then
-			sed -i -e 's#{KDE_SITE}#{KDE_SITE/stable/unstable}#g' "srcpkgs/$_pkg/template"
+		if grep -q "^version=$version$" "srcpkgs/$_pkg/template"; then
+			echo "$_pkg is aleady $version"
 		else
-			sed -i -e 's#{KDE_SITE/stable/unstable}#{KDE_SITE}#g' "srcpkgs/$_pkg/template"
-		fi
-		if [ "$FLAG_s" = -s ]; then
-			sed -i -e 's#plasma/\${version}#plasma/${version%.*}#g' "srcpkgs/$_pkg/template"
-		fi
-		xgensum -i "srcpkgs/$_pkg/template"
-		if [ "$FLAG_a" = -a ]; then
-			git add "srcpkgs/$_pkg/template"
-			[ $(git diff --cached --numstat "srcpkgs/$_pkg/template" | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
-			COMMIT=$(git log -n 1 --pretty=format:"%H" "srcpkgs/$_pkg/template")
-			git commit --fixup="$COMMIT"
-		else
-			xbump "$_pkg"
-			if [ "$ci_skip" ]; then
-				git commit --amend -m "${_pkg}: update to ${fake_version:=${version}}" -m "[ci skip]"
+			echo "Update $_pkg to $version"
+			if [ "$FLAG_r" = -r ]; then
+				echo "Checking homepage of $_pkg"
+				xcheckhomepage $_pkg
+			fi
+			case $_pkg in
+				amdvlk) amdvlk_update ;;
+				plex-media-player) plex_media_player_update ;;
+				rpcs3) gitsub_update ~/Projects/rpcs3;;
+				tg_owt) gitsub_update ~/Projects/tg_owt;;
+				ppsspp) gitsub_update ~/Projects/ppsspp;;
+			esac
+			sed -e "s/^version=.*/version=${version}/g" \
+				-e "s/^revision=.*/revision=1/g" \
+				-e 's#http.://download.kde.org/stable#${KDE_SITE}#g' \
+				-i "srcpkgs/$_pkg/template"
+			if [ "$FLAG_m" = -m ]; then
+				sed -i -e 's#Orphaned <orphan@voidlinux.org>#John <johnz@posteo.net>#g' "srcpkgs/$_pkg/template"
+			fi
+			if [ "$FLAG_b" = -b ]; then
+				sed -i -e 's#{KDE_SITE}#{KDE_SITE/stable/unstable}#g' "srcpkgs/$_pkg/template"
+				sed -i -e 's/official_releases/development_releases/g' \
+					"srcpkgs/$_pkg/template"
+				# -e 's#\${version}#\${version/alpha/-alpha}#g' \
+			else
+				sed -i -e 's#{KDE_SITE/stable/unstable}#{KDE_SITE}#g' "srcpkgs/$_pkg/template"
+				sed -i -e 's/development_releases/official_releases/g' \
+					"srcpkgs/$_pkg/template"
+				# -e 's#\${version/rc/-rc}#\${version}#g' \
+			fi
+			if [ "$FLAG_s" = -s ]; then
+				sed -i -e 's#plasma/\${version}#plasma/${version%.*}#g' "srcpkgs/$_pkg/template"
+			fi
+			xgensum -i "srcpkgs/$_pkg/template"
+			if [ "$FLAG_a" = -a ]; then
+				git add "srcpkgs/$_pkg/template"
+				[ $(git diff --cached --numstat "srcpkgs/$_pkg/template" | wc -l) -eq 1 ] || (echo No changes staged. ; exit 1)
+				COMMIT=$(git log -n 1 --pretty=format:"%H" "srcpkgs/$_pkg/template")
+				git commit --fixup="$COMMIT"
+			else
+				xbump "$_pkg"
 			fi
 		fi
-	fi
 	fi
 done
