@@ -17,20 +17,31 @@ def getUrls (repo):
 			url = submodule.url
 			if url.endswith(".git"):
 				url=url[:-4]
-			print(url + "/archive/${" + basename(submodule.path).replace('-', '_') + "_commit}.tar.gz")
+			print(url + "/archive/${_" + basename(submodule.path).replace('-', '_') + "_commit}.tar.gz")
+		elif submodule.url.startswith("https://chromium.googlesource.com"):
+			# https://chromium.googlesource.com/webm/libvpx/+archive/3a38edea2cd114d53914cab017cab2e43a600031.tar.gz
+			print(submodule.url + "/+archive/${_" + basename(submodule.path).replace('-', '_') + "_commit}.tar.gz")
+		elif submodule.module().remote().url.startswith("https://invent.kde.org"):
+				url = submodule.module().remote().url
+				if url.endswith(".git"):
+						url=url[:-4]
+				name=basename(submodule.path).replace('-', '_')
+				print(f"{url}/-/archive/${{_{name}_commit}}/{name}-${{_{name}_commit}}.tar.gz")
 		else:
+            print(f"Suburl: {submodule.url}")
+            print(f"Remurl: {submodule.module().remote().url}")
 			print("Unknown URL, don't know how to rewrite")
 			exit(1)
 
 def getCommits (repo):
 	for submodule in repo.submodules:
-		print(basename(submodule.path).replace('-', '_') + "_commit=" + submodule.hexsha)
+		print("_" + basename(submodule.path).replace('-', '_') + "_commit=" + submodule.hexsha)
 
 def constructPostExtract (repo):
 	print("post_extract() {")
 	for sub in repo.submodules:
 		print("\trmdir -v ${wrksrc}/" + sub.path)
-		print("\tmv ${wrksrc}/../" + basename(sub.url) + "-${" + basename(sub.path).replace('-', '_') + "_commit} ${wrksrc}/" + sub.path)
+		print("\tmv ${wrksrc}/../" + basename(sub.url) + "-${_" + basename(sub.path).replace('-', '_') + "_commit} ${wrksrc}/" + sub.path)
 	print("}")
 
 parser = argparse.ArgumentParser(description='Print some git submodule infos')
@@ -40,6 +51,7 @@ parser.add_argument('--no-urls', dest='print_urls', action='store_const', const=
 args = parser.parse_args()
 
 repo = git.Repo(args.path[0])
+conf = repo.config_reader()
 if(args.post_extract):
 	constructPostExtract(repo)
 else:
