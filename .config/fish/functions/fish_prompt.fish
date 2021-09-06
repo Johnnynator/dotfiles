@@ -62,6 +62,14 @@ function fish_prompt
         set_color -o cyan
     end
     echo -n (prompt_hostname)
+    set -l netns (ip netns identify $PID)
+    if test $netns
+        set -l vlan (ip -j -d link show type vlan | jq '.[].linkinfo.info_data.id')
+        set_color -o white
+        echo -n :
+        set_color -o red
+        echo -n $netns@$vlan
+    end
     set_color -o white
     echo -n :(prompt_pwd)
     set_color -o green
