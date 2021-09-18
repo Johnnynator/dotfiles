@@ -11,7 +11,5 @@
 	process = git-lfs filter-process
 	required = true
 	clean = git-lfs clean -- %f
-[commit]
-	gpgsign = true
 [pull]
 	rebase = true
