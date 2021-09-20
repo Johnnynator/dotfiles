@@ -10,7 +10,10 @@ Plug 'hrsh7th/cmp-nvim-lsp'
 call plug#end()
 
 lua << EOF
-local nvim_lsp = require('lspconfig')
+local status, nvim_lsp = pcall(require, 'lspconfig')
+if not status then
+  return
+end
 local servers = { 'clangd' }
 for _, lsp in ipairs(servers) do
   nvim_lsp[lsp].setup {
