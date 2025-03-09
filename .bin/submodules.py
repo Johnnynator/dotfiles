@@ -28,7 +28,7 @@ def getUrls (repo):
 			url = stripDotGit(url)
 			# https://chromium.googlesource.com/webm/libvpx/+archive/3a38edea2cd114d53914cab017cab2e43a600031.tar.gz
 			print(url + "/+archive/${_" + normalizeName(submodule.path) + "_commit}.tar.gz")
-		elif url.startswith("https://invent.kde.org"):
+		elif url.startswith("https://invent.kde.org") or url.startswith("https://gitlab.com") or url.startswith("https://gitlab.freedesktop.org"):
 			name = normalizeName(submodule.path)
 			print(url + "/-/archive/${_" + name + "_commit}/" + name + "-${_" + name + "_commit}.tar.gz")
 		else:
@@ -41,11 +41,17 @@ def getCommits (repo):
 	for submodule in repo.submodules:
 		print("_" + basename(submodule.path).replace('-', '_') + "_commit=" + submodule.hexsha)
 
+def getNoExtract (repo):
+	print('skip_extraction="')
+	for submodule in repo.submodules:
+		print(" ${_" + basename(submodule.path).replace('-', '_') + "_commit}.tar.gz")
+	print(' "')
+
 def constructPostExtract (repo):
 	print("post_extract() {")
 	for sub in repo.submodules:
-		print("\trmdir -v ${wrksrc}/" + sub.path)
-		print("\tmv ${wrksrc}/../" + basename(sub.url) + "-${_" + basename(sub.path).replace('-', '_') + "_commit} ${wrksrc}/" + sub.path)
+		src = "${_" + basename(sub.path).replace('-', '_') + "_commit}.tar.gz"
+		print(f"\t vsrcextract -C {sub.path} {src}")
 	print("}")
 
 def main ():
@@ -61,6 +67,7 @@ def main ():
 		constructPostExtract(repo)
 	else:
 		getCommits(repo)
+		getNoExtract(repo)
 		if(args.print_urls):
 			getUrls(repo)
 
